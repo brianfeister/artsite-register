@@ -17,7 +17,15 @@ return <<<ENDHERE
 	</div>
 
 	<div class="${csp}_form_row">
-		<div class="${csp}_editform-label"><label for="${csp}_domain">Domain name:</label> <input type="text" id="${csp}_domain" class="${csp}_form_textinput" name="${csp}_domain" size="32" value="$domain" data-validate-domain="true" data-validate-presence="true" data-validate-error=".${csp}_domain-error"></div>
+		<div class="${csp}_editform-label"><label for="${csp}_domain">Domain name:</label> <input type="text" id="${csp}_domain" class="${csp}_form_textinput" name="${csp}_domain" size="27" value="$domain" data-validate-domain="true" data-validate-presence="true" data-validate-error=".${csp}_domain-error">
+		<select name="${csp}_domain_suffix" id="${csp}_domain_suffix">
+			<option value=".org">.org</option>
+			<option value=".me">.me</option>
+			<option value=".com">.com</option>
+			<option value=".net">.net</option>
+		</select>
+		</div>
+
 		<div class="${csp}_error ${csp}_domain-error"><span class="domain-error">Domain not available - use another</span> <span class="blank-error">Required</span></div>
 	</div>
 

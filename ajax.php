@@ -69,11 +69,13 @@ function artsite_username_checkavail($username = false) {
 	}
 }
 
-function artsite_ajax_domain_checkavail($dom = false) {
+function artsite_ajax_domain_checkavail($dom = false, $domsuf = false) {
 	// WordPress usernames are case-sensitive, so do not change case
 	if ($dom == false) $dom =  isset($_GET['artsite_domain']) ? $_GET['artsite_domain'] : "";
+	if ($domsuf == false) $domsuf =  isset($_GET['artsite_domainsuf']) ? $_GET['artsite_domainsuf'] : "";
+
 	if ($dom) {
-		echo artsite_domain_checkavail($dom);
+		echo artsite_domain_checkavail($dom.$domsuf);
 	} else {
 		echo "ERRNUL";
 	}

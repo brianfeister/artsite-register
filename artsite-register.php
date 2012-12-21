@@ -77,10 +77,10 @@ function artsite_verify_form() {
 		}
 
 		// Verify domain name - valid + available
-		if (empty($_POST[$csp.'_domain'])) {
+		if (empty($_POST[$csp.'_domain']) || empty($_POST[$csp.'_domain_suffix'])) {
 			$artsite_form_errors[] = "You must enter a domain name.";
 		} else {
-			$avail = artsite_domain_checkavail($_POST[$csp.'_domain']);
+			$avail = artsite_domain_checkavail($_POST[$csp.'_domain'].$_POST[$csp.'_domain_suffix']);
 			// Some of these error messages are quite similar, but at least the differences will give the site admin information on which code-path was followed.
 			switch ($avail) {
 				case "AVAIL":
@@ -136,7 +136,7 @@ function artsite_verify_form() {
 			$validated_data = array (
 				'username' => $_POST[$csp.'_user_name'],
 				'email' => $_POST[$csp.'_email'],
-				'domain' => $_POST[$csp.'_domain'],
+				'domain' => $_POST[$csp.'_domain'].$_POST[$csp.'_domain_suffix'],
 				'stripe_customer_token' => $stripe_customer_token
 			);
 			do_action('artsite_signup_validated', $validated_data);
@@ -299,6 +299,8 @@ ENDHERE;
 			// This gets caught by the domain test, but needs to return here as valid to avoid spoiling CSS
 			domainval = this.val();
 			if (domainval == "") { return true; }
+			domainval = domainval + jQuery('#${csp}_domain_suffix').val();
+alert("Domainval: "+domainval);
 			// Regex same as that used in the validation plugin
 			if (! /^(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/.test(domainval)) { alert("You entered an invalid domain name."); return false; }
 			if (/\.(xxx)$/.test(domainval)) { alert(".xxx domains are not permitted"); return false; }
