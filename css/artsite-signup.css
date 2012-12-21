@@ -1,0 +1,58 @@
+/* Used to control the display of validation errors on the sign-up form */
+
+.as_signup_email-error.email-error .newemail-error{ display: none; }
+.as_signup_email-error.newemail-error .email-error{ display: none; }
+.as_signup_email-error.newemail-error  .newemail-error{ display: inline; }
+.as_signup_email-error.email-error .email-error{ display: inline; }
+
+.as_signup_domain-error.blank-error .domain-error{ display: none; }
+.as_signup_domain-error.domain-error .blank-error{ display: none; }
+.as_signup_domain-error.domain-error  .domain-error{ display: inline; }
+.as_signup_domain-error.blank-error .blank-error{ display: inline; }
+
+.as_signup_ccnumber-error.blank-error .ccnumber-error{ display: none; }
+.as_signup_ccnumber-error.ccnumber-error .blank-error{ display: none; }
+.as_signup_ccnumber-error.ccnumber-error  .ccnumber-error{ display: inline; }
+.as_signup_ccnumber-error.blank-error .blank-error{ display: inline; }
+
+.as_signup_user_name-error.blank-error .newusername-error{ display: none; }
+.as_signup_user_name-error.newusername-error .blank-error{ display: none; }
+.as_signup_user_name-error.newusername-error  .newusername-error{ display: inline; }
+.as_signup_user_name-error.blank-error .blank-error{ display: inline; }
+
+#as_signup_errorbox {
+	width: 540px;
+	padding: 16px;
+	margin-bottom: 16px;
+	border: 1px dotted;
+	border-radius: 5px;
+	background-color: #e77;
+}
+
+.as_signup_error {
+	display: none;
+	color: #ff0000;
+	margin-left: 10px;
+	float: left;
+}
+
+.as_signup_form_row label {
+	width: 145px;
+	font-weight: bold;
+	display: inline-block;
+	*display: inline;
+}
+
+.as_signup_form_row {
+	clear: left;
+	padding: 6px 0;
+	margin: 0px 8px;
+}
+
+.as_signup_form_row button  {
+	margin-left: 130px;
+}
+
+.as_signup-editform-label {
+	float: left;
+}
