@@ -300,7 +300,6 @@ ENDHERE;
 			domainval = this.val();
 			if (domainval == "") { return true; }
 			domainval = domainval + jQuery('#${csp}_domain_suffix').val();
-alert("Domainval: "+domainval);
 			// Regex same as that used in the validation plugin
 			if (! /^(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/.test(domainval)) { alert("You entered an invalid domain name."); return false; }
 			if (/\.(xxx)$/.test(domainval)) { alert(".xxx domains are not permitted"); return false; }
