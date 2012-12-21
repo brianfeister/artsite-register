@@ -1,9 +1,9 @@
 //<?php
+// The purpose of the above line is to give a hint to the editor to give the desired syntax highlighting
 
 $username = isset($_POST[$csp.'_user_name']) ? htmlspecialchars($_POST[$csp.'_user_name']) : "";
 $email = isset($_POST[$csp.'_email']) ? htmlspecialchars($_POST[$csp.'_email']) : "";
 $domain = isset($_POST[$csp.'_domain']) ? htmlspecialchars($_POST[$csp.'_domain']) : "";
-
 
 return <<<ENDHERE
 	<div class="${csp}_form_row">

@@ -42,8 +42,13 @@ function artsite_update_wpmu_options() {
 	# Test the settings e.g. by checking the availability of google.com
 	$available = artsite_namecheap_checkavailability("google.com", $_POST['namecheap_apiuser'], $_POST['namecheap_apikey'], $_POST['namecheap_clientip'], $_POST['namecheap_sandbox']);
 	# Note: Check for 0 (not available), and avoid false (error)
-	if ($available !== 0) {
-		$errors[]="Using the given options, we failed to communicate successfully with NameCheap on a test operation";
+	if ($available != false) {
+		$errors[]="Using the given options, we failed to communicate successfully with NameCheap on a test operation.";
+		if (is_wp_error($available)) {
+			foreach ($available->get_error_messages() as $key => $msg) {
+				$errors[] = "* ".$msg; 
+			}
+		}
 	} else {
 		$options['namecheap_apiuser'] = $_POST['namecheap_apiuser'];
 		$options['namecheap_apikey'] = $_POST['namecheap_apikey'];
