@@ -355,8 +355,8 @@ ENDHERE;
 function artsite_domain_checkavail($dom) {
 
 	// Quick short-circuit for testing
-	if ($_SERVER['SERVER_NAME'] == "localhost" && $dom == "ebay.com" ) return "NAVAIL";
-	if ($_SERVER['SERVER_NAME'] == "localhost" && $dom == "zug93.com" ) return "AVAIL";
+	if (( $_SERVER['SERVER_NAME'] == "localhost" || $_SERVER["REMOTE_ADDR"] == "::ffff:127.0.0.1" || $_SERVER['REMOTE_ADDR'] == '127.0.0.1' ) && $dom == "ebay.com" ) return "NAVAIL";
+	if (( $_SERVER['SERVER_NAME'] == "localhost" || $_SERVER["REMOTE_ADDR"] == "::ffff:127.0.0.1" || $_SERVER['REMOTE_ADDR'] == '127.0.0.1' ) && $dom == "zug93.com" ) return "AVAIL";
 
 	// .xxx domains are not allowed
 	if (preg_match("/\.xxx$/i", $dom)) return "NAVAIL";
