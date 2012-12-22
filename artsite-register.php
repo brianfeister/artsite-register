@@ -3,7 +3,7 @@
 Plugin Name: Art Site Register
 Description: This plugin provides a short-code for the customised, AJAX-ified sign-up form
 Author: David Anderson
-Version: 0.1.2
+Version: 0.1.3
 Author URI: http://www.simbahosting.co.uk, http://wordshell.net
 */
 
@@ -39,9 +39,9 @@ function artsite_enqueue_scripts() {
 require_once(ARTSIGNUP_DIR . '/ajax.php');
 
 add_action('init', 'artsite_verify_form');
-add_action('init', 'artsite_redirect_signup');
+add_action('init', 'artsite_redirect_signup_setup');
 
-function artsite_redirect_signup() {
+function artsite_redirect_signup_setup() {
 	$options = get_site_option('artsite_signup_options');
 	if (!empty($options['signup_url']) && $options['signup_url'] != "http://") {
 		add_action('signup_header', 'artsite_redirect_signup_go');
@@ -50,7 +50,9 @@ function artsite_redirect_signup() {
 
 function artsite_redirect_signup_go() {
 	$options = get_site_option('artsite_signup_options');
-	wp_redirect($options['signup_url']);
+	$send_to = $options['signup_url']);
+	if (!empty($_SERVER["QUERY_STRING"])) $send_to .= '?'.$_SERVER["QUERY_STRING"];
+	wp_redirect($send_to);
 	exit;
 }
 
