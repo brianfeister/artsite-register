@@ -50,7 +50,7 @@ function artsite_redirect_signup_setup() {
 
 function artsite_redirect_signup_go() {
 	$options = get_site_option('artsite_signup_options');
-	$send_to = $options['signup_url']);
+	$send_to = $options['signup_url'];
 	if (!empty($_SERVER["QUERY_STRING"])) $send_to .= '?'.$_SERVER["QUERY_STRING"];
 	wp_redirect($send_to);
 	exit;
