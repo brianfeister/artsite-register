@@ -325,7 +325,7 @@ ENDHERE;
 					} else if (data == "ERRWHO1" || data == "ERRWHO2" ) {
 						alert("The domain lookup failed - please try again, or contact and alert us. Possibly you entered an invalid domain name; examples of valid domain names are: example.com, mydomain.co.uk, another-example.org");
 					} else {
-						alert("An unknown/unexpected error occured - please try again, or contact and alert us (data:"+data+")");
+						alert("An unknown/unexpected error occured - please try again, or contact and alert us (http status: "+status+", data:"+data+")");
 					}
 				}
 			});
