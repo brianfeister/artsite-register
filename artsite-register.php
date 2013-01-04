@@ -3,8 +3,8 @@
 Plugin Name: Art Site Register
 Description: This plugin provides a short-code for the customised, AJAX-ified sign-up form
 Author: David Anderson
-Version: 0.1.3
-Author URI: http://www.simbahosting.co.uk, http://wordshell.net
+Version: 0.1.4
+Author URI: http://www.simbahosting.co.uk
 */
 
 if (!defined ('ABSPATH')) die ('No direct access allowed');
