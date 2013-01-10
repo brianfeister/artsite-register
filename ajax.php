@@ -10,8 +10,8 @@ add_action( 'admin_enqueue_scripts', 'artsite_ajax_enqueue' );
 add_action( 'wp_enqueue_scripts', 'artsite_ajax_enqueue' );
 
 function artsite_ajax_enqueue() {
-	wp_enqueue_script( 'artsite-ajax', ARTSIGNUP_URL.'/js/ajax.js', array( 'jquery' ) );
-	wp_localize_script( 'artsite-ajax', 'artsite_ajax', array( 'ajaxurl' => admin_url( 'admin-ajax.php' ) ) );
+	wp_enqueue_script('artsite-ajax', ARTSIGNUP_URL.'/js/ajax.js', array( 'jquery' ) );
+	wp_localize_script('artsite-ajax', 'artsite_ajax', array( 'ajaxurl' => admin_url( 'admin-ajax.php' ) ) );
 }
 
 # Set up our handler for when WordPress receives the AJAX call
@@ -40,33 +40,13 @@ function artsite_ajax_dispatcher() {
 
 function artsite_ajax_email_checkavail($email = false) {
 	if ($email == false) $email =  isset($_GET['artsite_email']) ? strtolower($_GET['artsite_email']) : "";
-	echo artsite_email_checkavail($email);
-}
-
-function artsite_email_checkavail($email) {
-	if (preg_match("/^[a-z_\.0-9]+\@[-a-z0-9]+(\.[-a-z0-9]+)+$/",$email)) {
-		if ($user = get_user_by('email', $email)) {
-			return "NAVAIL";
-		} else {
-			return "AVAIL";
-		}
-	} else {
-		return "ERRBAD";
-	}
+	echo ArtSite_DataValidator::email_checkavailability($email);
 }
 
 function artsite_ajax_username_checkavail($username = false) {
 	// WordPress usernames are case-sensitive, so do not change case
 	if ($username == false) $username =  isset($_GET['artsite_username']) ? $_GET['artsite_username'] : "";
-	echo artsite_username_checkavail($username);
-}
-
-function artsite_username_checkavail($username = false) {
-	if (preg_match("/^[a-zA-Z0-9]+$/", $username)) {
-		return ($user = get_user_by('login', $username)) ? "NAVAIL" : "AVAIL";
-	} else {
-		return "ERRBAD";
-	}
+	echo ArtSite_DataValidator::username_checkavailability($username);
 }
 
 function artsite_ajax_domain_checkavail($dom = false, $domsuf = false) {
@@ -75,21 +55,10 @@ function artsite_ajax_domain_checkavail($dom = false, $domsuf = false) {
 	if ($domsuf == false) $domsuf =  isset($_GET['artsite_domainsuf']) ? $_GET['artsite_domainsuf'] : "";
 
 	if ($dom) {
-		echo artsite_domain_checkavail($dom.$domsuf);
+		echo ArtSite_DataValidator::domain_checkavailability($dom.$domsuf);
 	} else {
 		echo "ERRNUL";
 	}
 }
-
-// function artsite_ajax_stripe_cardverify() {
-// 
-// 	// 	$dom = isset($_GET['artsite_domain']) ? strtolower($_GET['artsite_domain']) : "";
-// 
-// 	// Set up access to Stripe
-// 	artsite_stripe_initialise();
-// 
-// 	echo "NOTIMPL, TODO";
-// 
-// }
 
 ?>

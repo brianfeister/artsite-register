@@ -21,7 +21,7 @@ function artsite_signup_options_menu() {
 function artsite_signup_options_setdefaults() {
 	$tmp = get_site_option('artsite_signup_options');
 	if (!is_array($tmp)) {
-		$arr = array( "namecheap_apiuser" => "", 'namecheap_apikey' => "", 'namecheap_clientip' => "", 'namecheap_sandbox' => 'yes', 'stripe_apikey' => '', 'stripe_apisecretkey' => '', 'signup_url' => "" );
+		$arr = array( "namecheap_apiuser" => "", 'namecheap_apikey' => "", 'namecheap_clientip' => "", 'namecheap_sandbox' => 'yes', 'stripe_apikey' => '', 'stripe_apisecretkey' => '', 'signup_url' => "", 'post_signup_url' => '' );
 		update_site_option('artsite_signup_options', $arr);
 	}
 }
@@ -59,6 +59,7 @@ function artsite_update_wpmu_options() {
 	$options['stripe_apisecretkey'] = $_POST['stripe_apisecretkey'];
 
 	$options['signup_url'] = $_POST['signup_url'];
+	$options['post_signup_url'] = $_POST['post_signup_url'];
 
 	update_site_option('artsite_signup_options', $options);
 
@@ -102,6 +103,11 @@ $options = get_site_option('artsite_signup_options');
 <tr valign="top">
 	<th scope="row">Redirect signup page to:</th>
 	<td><input maxlength="128" type="text" size="48" name="signup_url" value="<?php if (!empty($options['signup_url'])) { echo htmlspecialchars($options['signup_url']);} else { echo "http://"; } ?>"/></td>
+</tr>
+
+<tr valign="top">
+	<th scope="row">After successful signup, redirect to:</th>
+	<td><input maxlength="128" type="text" size="48" name="post_signup_url" value="<?php if (!empty($options['post_signup_url'])) { echo htmlspecialchars($options['post_signup_url']);} else { echo "http://"; } ?>"/></td>
 </tr>
 
 
