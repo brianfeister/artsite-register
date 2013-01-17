@@ -18,11 +18,14 @@ define ('ARTSITE_CSSPREFIX', 'as_signup');
 # Options admin interface
 if (is_admin()) require_once(ARTSIGNUP_DIR.'/options.php');
 
+# NameCheap functionality
+require_once(ARTSIGNUP_DIR.'/class-namecheap.php');
+
 # Class containing validation class
 require_once(ARTSIGNUP_DIR.'/class-validation.php');
 
-# Stripe-handling functions
-require_once(ARTSIGNUP_DIR.'/class-stripe.php');
+# Stripe and receipt-handling functions
+require_once(ARTSIGNUP_DIR.'/class-payments.php');
 
 # This file contains the code for handling the artsite_signup_validated action when valid details have been entered
 require_once(ARTSIGNUP_DIR.'/class-signup-handler.php');

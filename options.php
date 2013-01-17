@@ -21,7 +21,19 @@ function artsite_signup_options_menu() {
 function artsite_signup_options_setdefaults() {
 	$tmp = get_site_option('artsite_signup_options');
 	if (!is_array($tmp)) {
-		$arr = array( "namecheap_apiuser" => "", 'namecheap_apikey' => "", 'namecheap_clientip' => "", 'namecheap_sandbox' => 'yes', 'stripe_apikey' => '', 'stripe_apisecretkey' => '', 'signup_url' => "", 'post_signup_url' => '' );
+		$arr = array(
+			"namecheap_apiuser" => "", 
+			'namecheap_apikey' => "", 
+			'namecheap_clientip' => "", 
+			'namecheap_sandbox' => 'yes', 
+			'stripe_apikey' => '', 
+			'stripe_apisecretkey' => '',
+			'charge_initial_amount' => '50',
+			'charge_monthly_amount' => '20',
+			'charge_description' => 'Artsite',
+			'signup_url' => "", 
+			'post_signup_url' => ''
+		);
 		update_site_option('artsite_signup_options', $arr);
 	}
 }
@@ -38,7 +50,7 @@ function artsite_update_wpmu_options() {
 
 	if (!empty($_POST['namecheap_apikey']) || !empty($_POST['namecheap_apiuser'])) {
 		# Test the settings e.g. by checking the availability of google.com
-		$available = artsite_namecheap_checkavailability("google.com", $_POST['namecheap_apiuser'], $_POST['namecheap_apikey'], $_POST['namecheap_clientip'], $_POST['namecheap_sandbox']);
+		$available = ArtSite_NameCheap::checkavailability("google.com", $_POST['namecheap_apiuser'], $_POST['namecheap_apikey'], $_POST['namecheap_clientip'], $_POST['namecheap_sandbox']);
 		# Note: Check for 0 (not available), and avoid false (error)
 		if ($available != false) {
 			$errors[]="Using the given options, we failed to communicate successfully with NameCheap on a test operation; the NameCheap options will not be saved.";
@@ -60,6 +72,11 @@ function artsite_update_wpmu_options() {
 
 	$options['signup_url'] = $_POST['signup_url'];
 	$options['post_signup_url'] = $_POST['post_signup_url'];
+
+	$options['charge_description'] = $_POST['charge_description'];
+
+	$options['charge_initial_amount'] = (float)$_POST['charge_initial_amount'];
+	$options['charge_monthly_amount'] = (float)$_POST['charge_monthly_amount'];
 
 	update_site_option('artsite_signup_options', $options);
 
@@ -110,6 +127,20 @@ $options = get_site_option('artsite_signup_options');
 	<td><input maxlength="128" type="text" size="48" name="post_signup_url" value="<?php if (!empty($options['post_signup_url'])) { echo htmlspecialchars($options['post_signup_url']);} else { echo "http://"; } ?>"/></td>
 </tr>
 
+<tr valign="top">
+	<th scope="row">Charge description:</th>
+	<td><input maxlength="128" type="text" size="48" name="charge_description" value="<?php if (!empty($options['charge_description'])) { echo htmlspecialchars($options['charge_description']);} else { echo "Artsite"; } ?>"/> <em>This is passed to Stripe as the charge description</em></td>
+</tr>
+
+<tr valign="top">
+	<th scope="row">Initial charge:</th>
+	<td>$ <input maxlength="6" type="text" size="6" name="charge_initial_amount" value="<?php if (!empty($options['charge_initial_amount'])) { echo htmlspecialchars($options['charge_initial_amount']);} else { echo "50"; } ?>"/></td>
+</tr>
+
+<tr valign="top">
+	<th scope="row">Monthly charge (after &quot;free&quot; period):</th>
+	<td>$ <input maxlength="6" type="text" size="6" name="charge_monthly_amount" value="<?php if (!empty($options['charge_monthly_amount'])) { echo htmlspecialchars($options['charge_monthly_amount']);} else { echo "20"; } ?>"/> <em>N.B. Affects both existing and new users</em></td>
+</tr>
 
 </table>
 <?php

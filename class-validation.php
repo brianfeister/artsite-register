@@ -109,7 +109,7 @@ class ArtSite_DataValidator {
 			return "ERRWWW";
 		} elseif (preg_match("/^([a-z0-9-]+\.)+[a-z]+$/i", $dom) ) {
 
-			$rcode = self::namecheap_checkavailability(strtolower($dom));
+			$rcode = ArtSite_NameCheap::checkavailability(strtolower($dom));
 			if (is_wp_error($rcode)) {
 				$wp_err = "";
 				foreach ($rcode->get_error_messages() as $key => $msg) {
@@ -117,47 +117,11 @@ class ArtSite_DataValidator {
 				}
 				return "ERR:".$wp_err;
 			}
-			if ($rcode == "false") return "NAVAIL";
-			if ($rcode == "true") return "AVAIL";
+			if ($rcode == false) return "NAVAIL";
+			if ($rcode == true) return "AVAIL";
 			return "ERRUK";
 
 		} else { return "ERRBAD";}
-	}
-
-	// Returns true (available), false (not available), or a WP_Error object
-	function namecheap_checkavailability($domain, $namecheap_apiuser = false, $namecheap_apikey = false, $namecheap_clientip = false, $namecheap_sandbox = "yes") {
-
-		$options = get_site_option('artsite_signup_options');
-		if ($namecheap_apiuser === false && isset($options['namecheap_apiuser'])) $namecheap_apiuser = $options['namecheap_apiuser'];
-		if ($namecheap_apikey === false && isset($options['namecheap_apikey'])) $namecheap_apikey = $options['namecheap_apikey'];
-		if ($namecheap_clientip === false && isset($options['namecheap_clientip'])) $namecheap_clientip = $options['namecheap_clientip'];
-		if (empty($namecheap_sandbox) && isset($options['namecheap_sandbox'])) $namecheap_sandbox = $options['namecheap_sandbox'];
-
-		if (empty($namecheap_apiuser) || empty($namecheap_apikey) || empty($namecheap_clientip)) return new WP_Error('missing_params', 'Missing NameCheap API configuration parameters' );
-
-		$namecheap_auth = "ApiUser=$namecheap_apiuser&ApiKey=$namecheap_apikey&UserName=$namecheap_apiuser&ClientIP=$namecheap_clientip";
-
-		$namecheap_url = ($namecheap_sandbox == "yes") ? 'https://api.sandbox.namecheap.com' : 'https://api.namecheap.com';
-
-		$namecheap_url .= '/xml.response?'.$namecheap_auth.'&Command=namecheap.domains.check&DomainList='.urlencode($domain);
-
-		$ch = curl_init( $namecheap_url );
-		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, TRUE );
-		$result = curl_exec( $ch );
-		curl_close( $ch );
-		if ( false == $result ) {
-			return new WP_Error('network_error', 'Communication error' );
-		}
-		$xml = new SimpleXMLElement( $result );
-		if ( 'ERROR' == $xml['Status'] ) {
-			return new WP_Error('namecheap_error', (string) $xml->Errors->Error );
-		} elseif ( 'OK' == $xml['Status'] ) {
-			$result = strtolower( (string)$xml->CommandResponse->DomainCheckResult->attributes()->Available );
-			if ($result == "true") return true;
-			if ($result == "false") return false;
-			return new WP_Error('namecheap_unknown_status', "Unrecognised result returned from NameCheap API" );
-		}
-
 	}
 
 	// https://gist.github.com/1287893
@@ -199,7 +163,8 @@ class ArtSite_DataValidator {
 				if (!is_numeric($_POST[$csp.'_cccvc']) || !preg_match("/^([0-9]{3,4})$/",$_POST[$csp.'_cccvc'])) { $credit_card_invalid = true; $artsite_form_errors[] = "Please enter a valid CVC code for this credit card."; }
 				if ($credit_card_invalid == false) {
 					// Stripe token
-					if (!ArtSite_Stripe::initialise()) {
+					global $artsite_payments;
+					if (!$artsite_payments->initialise()) {
 						$artsite_form_errors[] = "We had an internal error trying to process your credit card number. Please try again, or contact support.";
 					} else {
 						$exp_month = substr($_POST[$csp.'_ccexpiry'], 0, 2);
@@ -207,7 +172,17 @@ class ArtSite_DataValidator {
 
 						try {
 
-							$customer = Stripe_Customer::create( array( 'description' => "Customer for ".$_POST[$csp.'_email'], 'card' => array ( 'number' => $_POST[$csp.'_ccnumber'], 'exp_month' => $exp_month, 'exp_year' => $exp_year, 'cvc' => $_POST[$csp.'_cccvc'])));
+							$details = array(
+								'description' => "Customer for ".$_POST[$csp.'_email'],
+								'card' => array (
+									'number' => $_POST[$csp.'_ccnumber'],
+									'exp_month' => $exp_month,
+									'exp_year' => $exp_year,
+									'cvc' => $_POST[$csp.'_cccvc']
+								)
+							);
+
+							$customer = $artsite_payments->create_customer($details);
 
 							$stripe_customer_token = $customer->id;
 
@@ -218,12 +193,34 @@ class ArtSite_DataValidator {
 					
 				}
 			}
+			if (count($artsite_form_errors) == 0) {
+				// In theory, this is redundant, but also harmless as far as validation goes
+				// However, it does provide the correct filters to allow other plugins to act
+				$wp_validation = wpmu_validate_user_signup($_POST[$csp.'_user_name'], $_POST[$csp.'_email']);
+				$wperrs = $wp_validation['errors'];
+				if (count($wperrs->errors) > 0) {
+					foreach (get_error_messages($wperrs) as $err) {
+						$artsite_form_errors[] = $err;
+					}
+				} else {
+					// Parameters are: blog name, blog title
+					$wp_validation2 = wpmu_validate_blog_signup($_POST[$csp.'_user_name'], $_POST[$csp.'_user_name']."'s blog");
+					$wperrs = $wp_validation2['errors'];
+					if (count($wperrs->errors) > 0) {
+						foreach (get_error_messages($wperrs) as $err) {
+							$artsite_form_errors[] = $err;
+						}
+					}
+				}
+			}
 			if (count($artsite_form_errors) == 0 && isset($stripe_customer_token)) {
 				$validated_data = array (
 					'username' => $_POST[$csp.'_user_name'],
 					'email' => $_POST[$csp.'_email'],
 					'domain' => $_POST[$csp.'_domain'].$_POST[$csp.'_domain_suffix'],
-					'stripe_customer_token' => $stripe_customer_token
+					'stripe_customer_token' => $stripe_customer_token,
+					'card_exp_month' => (int)$exp_month,
+					'card_exp_year' => (int)$exp_year
 				);
 				return $validated_data;
 			} else {
