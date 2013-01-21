@@ -39,6 +39,7 @@ class ArtSite_SignupHandler {
 // 			'stripe_customer_token' => $stripe_customer_token,
 //			'card_expiry_month' => int($month),
 //			'card_expiry_year' => int($year),
+//			and then, domainreg_(fname,lname,addr1,town,state,zip,country,phone,email,org)
 // 		);
 
 		// Any errors can still be displayed to the user by adding them here
@@ -68,9 +69,6 @@ class ArtSite_SignupHandler {
 			}
 			return false;
 		}
-
-		$artsite_form_errors[] = "Great - charged (ID: $charged). Let's go!";
-		return false;
 
 		// Create the user and blog (all done in one)
 		// And: Create the blog
@@ -129,7 +127,29 @@ class ArtSite_SignupHandler {
 
 		// Register the domain name with NameCheap
 
-		$registration = ArtSite_NameCheap::register($passed['domain']);
+		$registrant_keys = array(
+			'fname',
+			'lname',
+			'addr1',
+			'town',
+			'state',
+			'country',
+			'zip',
+			'email',
+			'org',
+			'phone'
+		);
+
+		$registrant_details = array();
+		// Record the user's address details as metadata
+		// And, prepare array for passing to registration
+		foreach ($registrant_keys as $key) {
+			$detail = $passed['domainreg_'.$key];
+			$registrant_details[$key] = $detail;
+			add_user_meta($user_id, 'signup_'.$key, $detail);
+		}
+
+		$registration = ArtSite_NameCheap::register($passed['domain'], $registrant_details);
 		if (is_wp_error($registration)) {
 			foreach ($registration->get_error_messages() as $key => $msg) { $artsite_form_errors[] = $msg; }
 		}

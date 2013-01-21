@@ -32,7 +32,8 @@ function artsite_signup_options_setdefaults() {
 			'charge_monthly_amount' => '20',
 			'charge_description' => 'Artsite',
 			'signup_url' => "", 
-			'post_signup_url' => ''
+			'post_signup_url' => '',
+			'nameservers_default' => ''
 		);
 		update_site_option('artsite_signup_options', $arr);
 	}
@@ -67,16 +68,18 @@ function artsite_update_wpmu_options() {
 		}
 	}
 
-	$options['stripe_apikey'] = $_POST['stripe_apikey'];
-	$options['stripe_apisecretkey'] = $_POST['stripe_apisecretkey'];
-
-	$options['signup_url'] = $_POST['signup_url'];
-	$options['post_signup_url'] = $_POST['post_signup_url'];
-
-	$options['charge_description'] = $_POST['charge_description'];
+	$other_options = array(
+		'stripe_apikey', 'stripe_apisecretkey',
+		'signup_url', 'post_signup_url',
+		'charge_description',
+		'domainreg_address1', 'domainreg_town', 'domainreg_state', 'domainreg_zip', 'domainreg_phone', 'domainreg_email', 'domainreg_org', 'domainreg_fname', 'domainreg_lname', 'domainreg_cc'
+	);
+	foreach ($other_options as $key) $options[$key] = $_POST[$key];
 
 	$options['charge_initial_amount'] = (float)$_POST['charge_initial_amount'];
 	$options['charge_monthly_amount'] = (float)$_POST['charge_monthly_amount'];
+
+	$options['nameservers_default'] = preg_replace("/\s/", "", $_POST['nameservers_default']);
 
 	update_site_option('artsite_signup_options', $options);
 
@@ -106,6 +109,19 @@ $options = get_site_option('artsite_signup_options');
 
 <label for="namecheap_sandbox"> Yes, use sandbox</label></td></tr>
 
+<?php artsite_signup_options_standardrow('Default DNS servers', 'nameservers_default', 'Use commas to separate', 64, 200); ?>
+
+<?php artsite_signup_options_standardrow('Admin contact first name', 'domainreg_fname', '', 32, 200); ?>
+<?php artsite_signup_options_standardrow('Admin contact last name', 'domainreg_lname', '', 32, 200); ?>
+<?php artsite_signup_options_standardrow('Admin contact house/street', 'domainreg_address1', 'These are the details to be used for registering new domain names', 32, 200); ?>
+<?php artsite_signup_options_standardrow('Admin contact town', 'domainreg_town', '', 32, 200); ?>
+<?php artsite_signup_options_standardrow('Admin contact state', 'domainreg_state', '', 32, 200); ?>
+<?php artsite_signup_options_standardrow('Admin contact zip', 'domainreg_zip', '', 32, 200); ?>
+<?php artsite_signup_options_standardrow('Admin contact country code', 'domainreg_cc', '(Two-letters)', 32, 200); ?>
+<?php artsite_signup_options_standardrow('Admin contact phone', 'domainreg_phone', '(Must be exactly in format like: +44.12345etc)', 32, 200); ?>
+<?php artsite_signup_options_standardrow('Admin contact email address', 'domainreg_email', '', 32, 200, bloginfo('admin_email')); ?>
+<?php artsite_signup_options_standardrow('Admin contact organisation', 'domainreg_org', '', 32, 200); ?>
+
 <tr valign="top">
 	<th scope="row">Stripe API key (public)</th>
 	<td><input maxlength="32" type="text" size="48" name="stripe_apikey" value="<?php if (!empty($options['stripe_apikey'])) echo htmlspecialchars($options['stripe_apikey']); ?>"/></td>
@@ -119,7 +135,7 @@ $options = get_site_option('artsite_signup_options');
 
 <tr valign="top">
 	<th scope="row">Redirect signup page to:</th>
-	<td><input maxlength="128" type="text" size="48" name="signup_url" value="<?php if (!empty($options['signup_url'])) { echo htmlspecialchars($options['signup_url']);} else { echo "http://"; } ?>"/></td>
+	<td><input maxlength="128" type="text" size="48" name="signup_url" value="<?php if (!empty($options['signup_url'])) { echo htmlspecialchars($options['signup_url']);} else { echo "http://"; } ?>"/> <em>Attempts to sign-up via wp-signup.php will be intercepted and redirected to here.</em></td>
 </tr>
 
 <tr valign="top">
@@ -137,14 +153,21 @@ $options = get_site_option('artsite_signup_options');
 	<td>$ <input maxlength="6" type="text" size="6" name="charge_initial_amount" value="<?php if (!empty($options['charge_initial_amount'])) { echo htmlspecialchars($options['charge_initial_amount']);} else { echo "50"; } ?>"/></td>
 </tr>
 
-<tr valign="top">
-	<th scope="row">Monthly charge (after &quot;free&quot; period):</th>
-	<td>$ <input maxlength="6" type="text" size="6" name="charge_monthly_amount" value="<?php if (!empty($options['charge_monthly_amount'])) { echo htmlspecialchars($options['charge_monthly_amount']);} else { echo "20"; } ?>"/> <em>N.B. Affects both existing and new users</em></td>
-</tr>
+<?php artsite_signup_options_standardrow('Monthly charge (after "free" period):', 'charge_monthly_amount', "N.B. Affects both existing and new users", 6, 6, 20, '$ '); ?>
 
 </table>
 <?php
 
+}
+
+function artsite_signup_options_standardrow($label, $name, $description = "", $size = 12, $maxlength = 100, $default = "", $prefix = "" ) {
+$options = get_site_option('artsite_signup_options');
+?>
+<tr valign="top">
+	<th scope="row"><?php echo htmlspecialchars($label); ?></th>
+	<td><?php echo $prefix; ?><input maxlength="<?php echo $maxlength; ?>" type="text" size="<?php echo $size; ?>" name="<?php echo htmlspecialchars($name); ?>" value="<?php if (!empty($options[$name])) { echo htmlspecialchars($options[$name]);} else { echo htmlspecialchars($default); } ?>"><?php if ($description) { echo " <em>".htmlspecialchars($description)."</em>"; } ?></td>
+</tr>
+<?php
 }
 
 # This is the function outputing the HTML for our options page

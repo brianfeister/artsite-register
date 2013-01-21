@@ -20,7 +20,11 @@ class ArtSite_NameCheap {
 		return $namecheap_url;
 	}
 
-	function register_domain($domain, $namecheap_apiuser = false, $namecheap_apikey = false, $namecheap_clientip = false, $namecheap_sandbox = "yes") {
+	// $details is an array, with entires:
+	// fname, lname, addr1, town, state, zip, country, phone, email, org
+	function register_domain($domain, $details, $namecheap_apiuser = false, $namecheap_apikey = false, $namecheap_clientip = false, $namecheap_sandbox = "yes") {
+
+		$options = get_site_option('artsite_signup_options');
 
 		$namecheap_url = self::construct_url($namecheap_apiuser, $namecheap_apikey, $namecheap_clientip, $namecheap_sandbox);
 		if (is_wp_error($namecheap_url)) return $namecheap_url;
@@ -34,7 +38,30 @@ class ArtSite_NameCheap {
 			'DomainName' => $domain,
 			'Years' => 1
 		);
-			
+		foreach (array('Aux', 'Tech', 'Billing') as $ctype) {
+			$extra_params[$ctype.'FirstName'] = $options['domainreg_fname'];
+			$extra_params[$ctype.'LastName'] = $options['domainreg_lname'];
+			$extra_params[$ctype.'Address1'] = $options['domainreg_address1'];
+			$extra_params[$ctype.'City'] = $options['domainreg_town'];
+			$extra_params[$ctype.'StateProvince'] = $options['domainreg_state'];
+			$extra_params[$ctype.'PostalCode'] = $options['domainreg_zip'];
+			$extra_params[$ctype.'Country'] = $options['domainreg_country'];
+			$extra_params[$ctype.'Phone'] = $options['domainreg_phone'];
+			$extra_params[$ctype.'EmailAddress'] = $options['domainreg_email'];
+			$extra_params[$ctype.'OrganizationName'] = $options['domainreg_org'];
+		}
+
+		$extra_params['RegistrantFirstName'] = $details['fname'];
+		$extra_params['RegistrantLastName'] = $details['lname'];
+		$extra_params['RegistrantAddress1'] = $details['addr1'];
+		$extra_params['RegistrantCity'] = $details['town'];
+		$extra_params['RegistrantStateProvince'] = $details['state'];
+		$extra_params['RegistrantPostalCode'] = $details['zip'];
+		$extra_params['RegistrantCountry'] = $details['country'];
+		$extra_params['RegistrantPhone'] = $details['phone'];
+		$extra_params['RegistrantEmailAddress'] = $details['email'];
+		$extra_params['RegistrantOrganizationName'] = $details['org'];
+
 		$namecheap_url .= '&'.http_build_query($extra_params);
 
 		return new WP_Error('not_yet_impl', "Not yet implemented. Would call: ".$namecheap_url);
@@ -50,9 +77,11 @@ class ArtSite_NameCheap {
 
 		$namecheap_url .= '&Command=namecheap.domains.check&DomainList='.urlencode($domain);
 
-		$result = wp_remote_get($namecheap_url);
+		$result = wp_remote_get($namecheap_url, array('timeout' => 10));
 
-		if ( false == $result || is_wp_error($result) ) {
+		if (is_wp_error($result)) return $result;
+
+		if ( false == $result ) {
 			return new WP_Error('network_error', 'Communication error' );
 		}
 

@@ -136,7 +136,7 @@ class ArtSite_DataValidator {
 		return $sum % 10 === 0;
 	}
 
-	// Returns false or an array
+	// Returns false or an array. The array is one suitable for passing to ArtSite_SignupHandler::process_signup
 	function verify_form() {
 
 		$csp = ARTSITE_CSSPREFIX;
@@ -213,6 +213,7 @@ class ArtSite_DataValidator {
 					}
 				}
 			}
+			// List of domainreg keys: domainreg_(fname,lname,addr1,town,state,zip,country,phone,email,org)
 			if (count($artsite_form_errors) == 0 && isset($stripe_customer_token)) {
 				$validated_data = array (
 					'username' => $_POST[$csp.'_user_name'],
@@ -220,7 +221,17 @@ class ArtSite_DataValidator {
 					'domain' => $_POST[$csp.'_domain'].$_POST[$csp.'_domain_suffix'],
 					'stripe_customer_token' => $stripe_customer_token,
 					'card_exp_month' => (int)$exp_month,
-					'card_exp_year' => (int)$exp_year
+					'card_exp_year' => (int)$exp_year,
+					'domainreg_fname' => 'John',
+					'domainreg_lname' => 'Doe',
+					'domainreg_addr1' => '1, The Street',
+					'domainreg_town' => 'Townville',
+					'domainreg_state' => 'Texas',
+					'domainreg_zip' => '90210',
+					'domainreg_country' => 'US',
+					'domainreg_phone' => '+1.1234567890',
+					'domainreg_org' => '',
+					'domainreg_email' => $_POST[$csp.'_email']
 				);
 				return $validated_data;
 			} else {
