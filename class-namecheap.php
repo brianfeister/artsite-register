@@ -36,9 +36,10 @@ class ArtSite_NameCheap {
 		$extra_params = array (
 			'Command' => 'namecheap.domains.create',
 			'DomainName' => $domain,
-			'Years' => 1
+			'Years' => 1,
+			'Nameservers' => $options['nameservers_default']
 		);
-		foreach (array('Aux', 'Tech', 'Billing') as $ctype) {
+		foreach (array('AuxBilling', 'Tech', 'Admin') as $ctype) {
 			$extra_params[$ctype.'FirstName'] = $options['domainreg_fname'];
 			$extra_params[$ctype.'LastName'] = $options['domainreg_lname'];
 			$extra_params[$ctype.'Address1'] = $options['domainreg_address1'];
