@@ -70,12 +70,42 @@ class ArtSite_SignupHandler {
 			return false;
 		}
 
-		// Create the user and blog (all done in one)
-		// And: Create the blog
-		// And: Issue a password, and inform them
-		// It's not clear to me from a brief scan of the code that path is used on a domain-based install
-		// wpmu_signup_blog($domain, $path, $title, $user, $user_email, $meta = '')
-		wpmu_signup_blog($passed['domain'], '/', $passed['username']."'s blog", $passed['username'], $passed['email'] );
+		/* One way to do sign-up is:
+			- Hook wpmu_signup_blog_notification
+			- Call wpmu_signup_blog, which sets up the entry in the database for activation. Our hook can then abort the sending the email
+			- Then perform the activation with wpmu_activate_signup($key)
+		Alternatively, since wpmu_signup_blog_notification just puts some stuff in the database (a single INSERT), we could just do that and skip the hooking. And that's what we'll do.
+		*/
+
+		// wpmu_activate_signup($key) does it all
+		/* As the description for wpmu_activate_signup says:
+		* @uses wp_generate_password()
+		* @uses wpmu_welcome_user_notification()
+		* @uses add_user_to_blog()
+		* @uses add_new_user_to_blog()
+		* @uses wpmu_create_user()
+		* @uses wpmu_create_blog()
+		* @uses wpmu_welcome_notification()
+		*/
+
+		// Format data
+
+		$meta = array ('lang_id' => 1, 'public' => 1);
+		$key = substr( md5( time() . rand() . $domain ), 0, 16 );
+
+		global $wpdb;
+		$wpdb->insert( $wpdb->signups, array(
+			'domain' => $wpdb->escape($domain),
+			'path' => $wpdb->escape($path),
+			'title' => $wpdb->escape($title),
+			'user_login' => $user,
+			'user_email' => $user_email,
+			'registered' => current_time('mysql', true),
+			'activation_key' => $key,
+			'meta' => $meta
+		) );
+
+		wpmu_activate_signup($key);
 
 		// Store the Stripe token as metadata
 		# First, get the user ID
