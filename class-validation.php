@@ -153,6 +153,20 @@ class ArtSite_DataValidator {
 
 			self::validate_domainname();
 
+			if (empty($_POST[$csp.'_country']) || strlen($_POST[$csp.'_country']) != 2) {
+				$artsite_form_errors[] = "Unknown country selected";
+			}
+
+			if (empty($_POST[$csp.'_phonecountrycode']) || !preg_match("/^[0-9]{1,5}$/", $_POST[$csp.'_phonecountrycode'])) {
+				$artsite_form_errors[] = "Invalid phone country code entered";
+			}
+
+			if (empty($_POST[$csp.'_phoneno']) || !preg_match("/^[ 0-9]{1,16}$/", $_POST[$csp.'_phonecountrycode']) || preg_match("/^ +$/", $_POST[$csp.'_phonecountrycode'])) {
+				$artsite_form_errors[] = "Invalid phone number entered (use numbers only)";
+				// Normalise for what the NameCheap API wants
+				$_POST[$csp.'_phonecountrycode'] = str_replace(' ', '', $_POST[$csp.'_phonecountrycode']);
+			}
+
 			// Valid credit card details - can get a token
 			if (empty($_POST[$csp.'_ccnumber']) || empty($_POST[$csp.'_ccexpiry']) || empty($_POST[$csp.'_cccvc'])) {
 				$artsite_form_errors[] = "Please enter a credit card number, expiry date and CVC code.";
@@ -199,7 +213,7 @@ class ArtSite_DataValidator {
 				$wp_validation = wpmu_validate_user_signup($_POST[$csp.'_user_name'], $_POST[$csp.'_email']);
 				$wperrs = $wp_validation['errors'];
 				if (count($wperrs->errors) > 0) {
-					foreach (get_error_messages($wperrs) as $err) {
+					foreach ($wperrs->get_error_messages() as $err) {
 						$artsite_form_errors[] = $err;
 					}
 				} else {
@@ -207,7 +221,7 @@ class ArtSite_DataValidator {
 					$wp_validation2 = wpmu_validate_blog_signup($_POST[$csp.'_user_name'], $_POST[$csp.'_user_name']."'s blog");
 					$wperrs = $wp_validation2['errors'];
 					if (count($wperrs->errors) > 0) {
-						foreach (get_error_messages($wperrs) as $err) {
+						foreach ($wperrs->get_error_messages() as $err) {
 							$artsite_form_errors[] = $err;
 						}
 					}
@@ -222,17 +236,18 @@ class ArtSite_DataValidator {
 					'stripe_customer_token' => $stripe_customer_token,
 					'card_exp_month' => (int)$exp_month,
 					'card_exp_year' => (int)$exp_year,
-					'domainreg_fname' => 'John',
-					'domainreg_lname' => 'Doe',
-					'domainreg_addr1' => '1, The Street',
-					'domainreg_town' => 'Townville',
-					'domainreg_state' => 'Texas',
-					'domainreg_zip' => '90210',
-					'domainreg_country' => 'US',
-					'domainreg_phone' => '+1.1234567890',
+					'domainreg_fname' => $_POST[$csp.'_real_fname'],
+					'domainreg_lname' => $_POST[$csp.'_real_lname'],
+					'domainreg_addr1' => $_POST[$csp.'_addr1'],
+					'domainreg_town' => $_POST[$csp.'_town'],
+					'domainreg_state' => $_POST[$csp.'_state'],
+					'domainreg_zip' => $_POST[$csp.'_zip'],
+					'domainreg_country' => $_POST[$csp.'_country'],
+					'domainreg_phone' => '+'.$_POST[$csp.'_phonecountrycode'].'.'.$_POST[$csp.'_phoneno'],
 					'domainreg_org' => '',
 					'domainreg_email' => $_POST[$csp.'_email']
 				);
+print_r($validated_data);
 				return $validated_data;
 			} else {
 				return false;

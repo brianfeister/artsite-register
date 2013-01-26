@@ -139,7 +139,8 @@ ENDHERE;
 
 	$form_file = (file_exists(get_stylesheet_directory().'/signup-form.php')) ? get_stylesheet_directory().'/signup-form.php' : ARTSIGNUP_DIR.'/includes/signup-form.php';
 
-	$ret .= eval(file_get_contents($form_file));
+	require_once($form_file);
+	$ret .= artsite_signup_form_render();
 
 	$options = get_site_option('artsite_signup_options');
 

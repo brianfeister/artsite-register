@@ -37,8 +37,8 @@ class ArtSite_SignupHandler {
 // 			'email' => $_POST[$csp.'_email'],
 // 			'domain' => $_POST[$csp.'_domain'].$_POST[$csp.'_domain_suffix'],
 // 			'stripe_customer_token' => $stripe_customer_token,
-//			'card_expiry_month' => int($month),
-//			'card_expiry_year' => int($year),
+//			'card_exp_month' => int($month),
+//			'card_exp_year' => int($year),
 //			and then, domainreg_(fname,lname,addr1,town,state,zip,country,phone,email,org)
 // 		);
 
@@ -88,18 +88,17 @@ class ArtSite_SignupHandler {
 		* @uses wpmu_welcome_notification()
 		*/
 
-		// Format data
-
-		$meta = array ('lang_id' => 1, 'public' => 1);
-		$key = substr( md5( time() . rand() . $domain ), 0, 16 );
+		// Format data as desired
+		$meta = serialize(array ('lang_id' => 1, 'public' => 1));
+		$key = substr( md5( time() . rand() . $passed['domain'] ), 0, 16 );
 
 		global $wpdb;
 		$wpdb->insert( $wpdb->signups, array(
-			'domain' => $wpdb->escape($domain),
-			'path' => $wpdb->escape($path),
-			'title' => $wpdb->escape($title),
-			'user_login' => $user,
-			'user_email' => $user_email,
+			'domain' => $wpdb->escape($passed['domain']),
+			'path' => $wpdb->escape('/'),
+			'title' => $wpdb->escape($passed['domain']),
+			'user_login' => $passed['username'],
+			'user_email' => $passed['email'],
 			'registered' => current_time('mysql', true),
 			'activation_key' => $key,
 			'meta' => $meta
@@ -121,8 +120,8 @@ class ArtSite_SignupHandler {
 
 		// Store a card expiry date as metadata
 
-		$store_year = 2000 + $passed['card_expiry_year'];
-		add_user_meta($user_id, 'card_expiry', $passed['card_expiry_month'].'/'.$store_year);
+		$store_year = 2000 + $passed['card_exp_year'];
+		add_user_meta($user_id, 'card_expiry', $passed['card_exp_month'].'/'.$store_year);
 
 		// Email a payment receipt
 		$artsite_payments->send_receipt($passed['email'], $charged, $amount);
@@ -146,11 +145,12 @@ class ArtSite_SignupHandler {
 
 		global $wpdb;
 		$prosite_expire = time() + 86400*365*25;
-		$wpdb->query("INSERT INTO $wpdb->pro_sites VALUES($blog_id, ".ARTSITE_DEFAULT_PROSITE_LEVEL.", $prosite_expire, 'Manual', 'Permanent', NULL);");
+		$prefix = $wpdb->prefix;
+		$wpdb->query("INSERT INTO ${prefix}pro_sites VALUES($blog_id, ".ARTSITE_DEFAULT_PROSITE_LEVEL.", $prosite_expire, 'Manual', 'Permanent', NULL);");
 
 		// Store the "next charge due" date as meta-data for the user (6 months ahead)
 		$paid_expire_time = new DateTime();
-		$paid_expire_time = $paid_expire_time->add(new DateInterval('P6m'));
+		$paid_expire_time = $paid_expire_time->add(new DateInterval('P6M'));
 		$paid_expire_time = $paid_expire_time->getTimestamp();
 
 		add_user_meta($user_id, 'paid_until', $paid_expire_time);
@@ -179,7 +179,7 @@ class ArtSite_SignupHandler {
 			add_user_meta($user_id, 'signup_'.$key, $detail);
 		}
 
-		$registration = ArtSite_NameCheap::register($passed['domain'], $registrant_details);
+		$registration = ArtSite_NameCheap::register_domain($passed['domain'], $registrant_details);
 		if (is_wp_error($registration)) {
 			foreach ($registration->get_error_messages() as $key => $msg) { $artsite_form_errors[] = $msg; }
 		}
