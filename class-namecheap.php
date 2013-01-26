@@ -65,6 +65,9 @@ class ArtSite_NameCheap {
 
 		$namecheap_url .= '&'.http_build_query($extra_params);
 
+		// TODO
+		trigger_error($namecheap_url, E_USER_WARNING);
+
 		return new WP_Error('not_yet_impl', "Not yet implemented. Would call: ".$namecheap_url);
 
 	}
