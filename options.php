@@ -119,7 +119,7 @@ $options = get_site_option('artsite_signup_options');
 <?php artsite_signup_options_standardrow('Admin contact zip', 'domainreg_zip', '', 32, 200); ?>
 <?php artsite_signup_options_standardrow('Admin contact country code', 'domainreg_country', '(Two-letters)', 32, 200); ?>
 <?php artsite_signup_options_standardrow('Admin contact phone', 'domainreg_phone', '(Must be exactly in format like: +44.12345etc)', 32, 200); ?>
-<?php artsite_signup_options_standardrow('Admin contact email address', 'domainreg_email', '', 32, 200, bloginfo('admin_email')); ?>
+<?php artsite_signup_options_standardrow('Admin contact email address', 'domainreg_email', '', 32, 200, get_bloginfo('admin_email')); ?>
 <?php artsite_signup_options_standardrow('Admin contact organisation', 'domainreg_org', '', 32, 200); ?>
 
 <tr valign="top">

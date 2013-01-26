@@ -247,7 +247,6 @@ class ArtSite_DataValidator {
 					'domainreg_org' => '',
 					'domainreg_email' => $_POST[$csp.'_email']
 				);
-print_r($validated_data);
 				return $validated_data;
 			} else {
 				return false;

@@ -22,6 +22,7 @@ class ArtSite_NameCheap {
 
 	// $details is an array, with entires:
 	// fname, lname, addr1, town, state, zip, country, phone, email, org
+	// Returns either a WP_Error or (upon success) a NameCheap transaction ID
 	function register_domain($domain, $details, $namecheap_apiuser = false, $namecheap_apikey = false, $namecheap_clientip = false, $namecheap_sandbox = "yes") {
 
 		$options = get_site_option('artsite_signup_options');
@@ -39,18 +40,6 @@ class ArtSite_NameCheap {
 			'Years' => 1,
 			'Nameservers' => $options['nameservers_default']
 		);
-		foreach (array('AuxBilling', 'Tech', 'Admin') as $ctype) {
-			$extra_params[$ctype.'FirstName'] = $options['domainreg_fname'];
-			$extra_params[$ctype.'LastName'] = $options['domainreg_lname'];
-			$extra_params[$ctype.'Address1'] = $options['domainreg_address1'];
-			$extra_params[$ctype.'City'] = $options['domainreg_town'];
-			$extra_params[$ctype.'StateProvince'] = $options['domainreg_state'];
-			$extra_params[$ctype.'PostalCode'] = $options['domainreg_zip'];
-			$extra_params[$ctype.'Country'] = $options['domainreg_country'];
-			$extra_params[$ctype.'Phone'] = $options['domainreg_phone'];
-			$extra_params[$ctype.'EmailAddress'] = $options['domainreg_email'];
-			$extra_params[$ctype.'OrganizationName'] = $options['domainreg_org'];
-		}
 
 		$extra_params['RegistrantFirstName'] = $details['fname'];
 		$extra_params['RegistrantLastName'] = $details['lname'];
@@ -59,16 +48,40 @@ class ArtSite_NameCheap {
 		$extra_params['RegistrantStateProvince'] = $details['state'];
 		$extra_params['RegistrantPostalCode'] = $details['zip'];
 		$extra_params['RegistrantCountry'] = $details['country'];
-		$extra_params['RegistrantPhone'] = $details['phone'];
+		$extra_params['RegistrantPhone'] = preg_replace("/\s/", '', $details['phone']);
 		$extra_params['RegistrantEmailAddress'] = $details['email'];
 		$extra_params['RegistrantOrganizationName'] = $details['org'];
 
+		foreach (array('AuxBilling', 'Tech', 'Admin') as $ctype) {
+			$extra_params[$ctype.'FirstName'] = $options['domainreg_fname'];
+			$extra_params[$ctype.'LastName'] = $options['domainreg_lname'];
+			$extra_params[$ctype.'Address1'] = $options['domainreg_address1'];
+			$extra_params[$ctype.'City'] = $options['domainreg_town'];
+			$extra_params[$ctype.'StateProvince'] = $options['domainreg_state'];
+			$extra_params[$ctype.'PostalCode'] = $options['domainreg_zip'];
+			$extra_params[$ctype.'Country'] = $options['domainreg_country'];
+			$extra_params[$ctype.'Phone'] = preg_replace("/\s/", '', $options['domainreg_phone']);
+			$extra_params[$ctype.'EmailAddress'] = $options['domainreg_email'];
+			$extra_params[$ctype.'OrganizationName'] = $options['domainreg_org'];
+		}
+
 		$namecheap_url .= '&'.http_build_query($extra_params);
 
-		// TODO
-		trigger_error($namecheap_url, E_USER_WARNING);
+		$result = wp_remote_get($namecheap_url, array('timeout' => 60));
 
-		return new WP_Error('not_yet_impl', "Not yet implemented. Would call: ".$namecheap_url);
+		if (is_wp_error($result)) return $result;
+
+		$xml = new SimpleXMLElement( $result['body'] );
+		if ( 'ERROR' == $xml['Status'] ) {
+			return new WP_Error('namecheap_error', (string) $xml->Errors->Error );
+		} elseif ( 'OK' == $xml['Status'] ) {
+			$result = strtolower( (string)$xml->CommandResponse->DomainCreateResult->attributes()->Registered );
+			if ($result == "true") return strtolower( (string)$xml->CommandResponse->DomainCreateResult->attributes()->TransactionID );
+			if ($result == "false") return  new WP_Error('namecheap_registration_failed', "The domain name could not be registered" );
+			return new WP_Error('namecheap_unknown_status', "Unrecognised result returned from NameCheap API" );
+		} else {
+			return new WP_Error('namecheap_unknown_status', "Unrecognised result status (".$xml['Status'].") returned from NameCheap API" );
+		}
 
 	}
 
@@ -81,7 +94,7 @@ class ArtSite_NameCheap {
 
 		$namecheap_url .= '&Command=namecheap.domains.check&DomainList='.urlencode($domain);
 
-		$result = wp_remote_get($namecheap_url, array('timeout' => 10));
+		$result = wp_remote_get($namecheap_url, array('timeout' => 60));
 
 		if (is_wp_error($result)) return $result;
 

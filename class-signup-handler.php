@@ -30,6 +30,11 @@ class ArtSite_SignupHandler {
 
 	}
 
+	// Call this to prevent any other functions' calls to wp_redirect from working
+	function cancel_redirects($where) {
+		return false;
+	}
+
 	function process_signup($passed) {
 
 // 		$passed = array (
@@ -52,6 +57,8 @@ class ArtSite_SignupHandler {
 			return false;
 		}
 
+		$add_metas = array();
+
 		$options = get_site_option('artsite_signup_options');
 
 		$amount = (int)$options['charge_initial_amount'];
@@ -68,6 +75,50 @@ class ArtSite_SignupHandler {
 				$artsite_form_errors[] = $msg;
 			}
 			return false;
+		}
+
+		$add_metas['stripe_customer_token'] = $passed['stripe_customer_token'];
+
+		// Store a card expiry date as metadata
+		$store_year = 2000 + $passed['card_exp_year'];
+		$add_metas['card_expiry'] = $passed['card_exp_month'].'/'.$store_year;
+
+		// Email a payment receipt
+		$artsite_payments->send_receipt($passed['email'], $charged, $amount);
+
+		// Domain registration
+
+		$registrant_keys = array(
+			'fname',
+			'lname',
+			'addr1',
+			'town',
+			'state',
+			'country',
+			'zip',
+			'email',
+			'org',
+			'phone'
+		);
+
+		$registrant_details = array();
+		// Record the user's address details as metadata
+		// And, prepare array for passing to registration
+		foreach ($registrant_keys as $key) {
+			$detail = $passed['domainreg_'.$key];
+			$registrant_details[$key] = $detail;
+			$add_metas['signup_'.$key] = $detail;
+		}
+
+		$registration = ArtSite_NameCheap::register_domain($passed['domain'], $registrant_details);
+		if (is_wp_error($registration)) {
+			foreach ($registration->get_error_messages() as $key => $msg) { $artsite_form_errors[] = $msg; }
+			return;
+		} elseif (is_numeric($registration)) {
+			$add_metas['last_namecheap_transaction'] = $registration;
+		} else {
+			$artsite_form_errors[] = "An unknown/unexpected error occurred when registering your domain name.";
+			return;
 		}
 
 		/* One way to do sign-up is:
@@ -104,27 +155,18 @@ class ArtSite_SignupHandler {
 			'meta' => $meta
 		) );
 
+		// We don't want WordPress to redirect us anywhere
+		// add_filter('wp_redirect', array($this, 'cancel_redirects'), 10, 1);
+
 		wpmu_activate_signup($key);
 
-		// Store the Stripe token as metadata
-		# First, get the user ID
-
+		# Get the user ID
 		$user = get_user_by('login', $passed['username']);
 		if (!$user) {
 			$artsite_form_errors[] = "A non-recoverable error occurred when trying to find the user's details";
 			return false;
 		}
 		$user_id = $user->ID;
-
-		add_user_meta($user_id, 'stripe_customer_token', $passed['stripe_customer_token']);
-
-		// Store a card expiry date as metadata
-
-		$store_year = 2000 + $passed['card_exp_year'];
-		add_user_meta($user_id, 'card_expiry', $passed['card_exp_month'].'/'.$store_year);
-
-		// Email a payment receipt
-		$artsite_payments->send_receipt($passed['email'], $charged, $amount);
 
 		// Create the user's ProSite entry (manual, permanent)
 		$blog_id = get_blog_id_from_url($passed['domain']);
@@ -153,35 +195,19 @@ class ArtSite_SignupHandler {
 		$paid_expire_time = $paid_expire_time->add(new DateInterval('P6M'));
 		$paid_expire_time = $paid_expire_time->getTimestamp();
 
-		add_user_meta($user_id, 'paid_until', $paid_expire_time);
+		$add_metas['paid_until'] = $paid_expire_time;
 
-		// Register the domain name with NameCheap
-
-		$registrant_keys = array(
-			'fname',
-			'lname',
-			'addr1',
-			'town',
-			'state',
-			'country',
-			'zip',
-			'email',
-			'org',
-			'phone'
-		);
-
-		$registrant_details = array();
-		// Record the user's address details as metadata
-		// And, prepare array for passing to registration
-		foreach ($registrant_keys as $key) {
-			$detail = $passed['domainreg_'.$key];
-			$registrant_details[$key] = $detail;
-			add_user_meta($user_id, 'signup_'.$key, $detail);
+		foreach ($add_metas as $key => $value) {
+			add_user_meta($user_id, $key, $value);
 		}
 
-		$registration = ArtSite_NameCheap::register_domain($passed['domain'], $registrant_details);
-		if (is_wp_error($registration)) {
-			foreach ($registration->get_error_messages() as $key => $msg) { $artsite_form_errors[] = $msg; }
+		if (count($artsite_form_errors) == 0) {
+			if (!empty($options['post_signup_url'])) {
+				wp_redirect($options['post_signup_url']);
+				exit;
+			} else {
+				$artsite_form_errors[] = "The whole user/blog/domain setup process has gone through, but the site administrator has not yet configured the post-signup URL.";
+			}
 		}
 
 	}
