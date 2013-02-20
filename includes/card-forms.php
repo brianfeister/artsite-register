@@ -1,4 +1,5 @@
 <?php
+
 function artsite_signup_form_render() {
 
 $csp = ARTSITE_CSSPREFIX;
@@ -6,12 +7,6 @@ $csp = ARTSITE_CSSPREFIX;
 $username = isset($_POST[$csp.'_user_name']) ? htmlspecialchars($_POST[$csp.'_user_name']) : "";
 $email = isset($_POST[$csp.'_email']) ? htmlspecialchars($_POST[$csp.'_email']) : "";
 $domain = isset($_POST[$csp.'_domain']) ? htmlspecialchars($_POST[$csp.'_domain']) : "";
-
-$addr1 = isset($_POST[$csp.'_']) ? htmlspecialchars($_POST[$csp.'_addr1']) : "";
-$town = isset($_POST[$csp.'_']) ? htmlspecialchars($_POST[$csp.'_town']) : "";
-$state = isset($_POST[$csp.'_']) ? htmlspecialchars($_POST[$csp.'_state']) : "";
-$zip = isset($_POST[$csp.'_']) ? htmlspecialchars($_POST[$csp.'_zip']) : "";
-$phoneno = isset($_POST[$csp.'_']) ? htmlspecialchars($_POST[$csp.'_phoneno']) : "";
 
 $ret2 = <<<ENDHERE
 	<div class="${csp}_form_row">
@@ -45,6 +40,42 @@ $ret2 = <<<ENDHERE
 		<div class="${csp}_error ${csp}_domain-error"><span class="domain-error">Domain not available - use another</span> <span class="blank-error">Required</span></div>
 	</div>
 
+ENDHERE;
+
+	$ret2 .= artsite_signup_form_creditcard_render();
+
+	$ret2 .= <<<ENDHERE
+
+	<div class="${csp}_form_row">
+		<div class="${csp}_editform-label"><label for="${csp}_phone">Phone:</label> 
+ENDHERE;
+
+	ob_start();
+	require(ARTSIGNUP_DIR.'/includes/phonecodelist.php');
+	$ret2 .= ob_get_clean();
+
+$ret2 .= <<<ENDHERE
+		<input type="text" id="${csp}_phoneno" class="${csp}_form_textinput" name="${csp}_phoneno" size="16" maxlength="15" value="" data-validate-presence="true" data-validate-format="/^[ 0-9]{5,14}$/" data-validate-error=".${csp}_phoneno-error">	</div>
+		<div class="${csp}_error ${csp}_phoneno-error">Numbers only</div>
+	</div>
+ENDHERE;
+
+return $ret2;
+
+}
+// This is abstracted because it has multiple users
+function artsite_signup_form_creditcard_render() {
+
+	$ret2 = "";
+	$csp = ARTSITE_CSSPREFIX;
+
+	$addr1 = isset($_POST[$csp.'_']) ? htmlspecialchars($_POST[$csp.'_addr1']) : "";
+	$town = isset($_POST[$csp.'_']) ? htmlspecialchars($_POST[$csp.'_town']) : "";
+	$state = isset($_POST[$csp.'_']) ? htmlspecialchars($_POST[$csp.'_state']) : "";
+	$zip = isset($_POST[$csp.'_']) ? htmlspecialchars($_POST[$csp.'_zip']) : "";
+	$phoneno = isset($_POST[$csp.'_']) ? htmlspecialchars($_POST[$csp.'_phoneno']) : "";
+
+	$ret2 .= <<<ENDHERE
 	<div class="${csp}_form_row">
 		<div class="${csp}_editform-label"><label for="${csp}_ccnumber">Credit card number:</label> <input type="text" id="${csp}_ccnumber" class="${csp}_form_textinput" name="${csp}_ccnumber" size="32" value="" data-validate-ccnumber="true" data-validate-presence="true" data-validate-error=".${csp}_ccnumber-error"></div>
 		<div class="${csp}_error ${csp}_ccnumber-error"><span class="ccnumber-error">Invalid credit card number</span> <span class="blank-error">Required</span></div>
@@ -83,33 +114,12 @@ $ret2 = <<<ENDHERE
 	<div class="${csp}_form_row">
 		<div class="${csp}_editform-label"><label for="${csp}_country">Country:</label> 
 ENDHERE;
-
 	ob_start();
 	require(ARTSIGNUP_DIR.'/includes/countrylist.php');
 	$ret2 .= ob_get_clean();
+	$ret2 .= '</div></div>';
 
-$ret2 .= <<<ENDHERE
-		</div>
-	</div>
-
-	<div class="${csp}_form_row">
-		<div class="${csp}_editform-label"><label for="${csp}_phone">Phone:</label> 
-ENDHERE;
-
-	ob_start();
-	require(ARTSIGNUP_DIR.'/includes/phonecodelist.php');
-	$ret2 .= ob_get_clean();
-
-$ret2 .= <<<ENDHERE
-		<input type="text" id="${csp}_phoneno" class="${csp}_form_textinput" name="${csp}_phoneno" size="16" maxlength="15" value="" data-validate-presence="true" data-validate-format="/^[ 0-9]{5,14}$/" data-validate-error=".${csp}_phoneno-error">	</div>
-		<div class="${csp}_error ${csp}_phoneno-error">Numbers only</div>
-	</div>
-
-
-
-ENDHERE;
-
-return $ret2;
+	return $ret2;
 
 }
 
