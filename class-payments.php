@@ -33,12 +33,16 @@ class ArtSite_Payments {
 	}
 
 	function create_customer($customer_details) {
-
 		return Stripe_Customer::create($customer_details);
-
 	}
 
-	// Returns either a WP_Error or a Stripe_Charge
+	function update_customer($customer_token, $customer_details) {
+		$cu = Stripe_Customer::retrieve($customer_token);
+		$cu->card = $customer_details;
+		return $cu->save();
+	}
+
+	// Returns either a WP_Error or a Stripe_Charge->id
 	function charge($token, $amount) {
 
 		if (!$this->initialised) {
@@ -54,7 +58,7 @@ class ArtSite_Payments {
 		// Attempt a charge
 		try {
 			$charge = Stripe_Charge::create(array(
-				"amount" => $amount,
+				"amount" => 100*$amount,
 				"currency" => "usd",
 				"customer" => $token,
 				"description" => $description

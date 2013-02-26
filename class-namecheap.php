@@ -85,6 +85,73 @@ class ArtSite_NameCheap {
 
 	}
 
+	// This is a convenience method. Send the url from the name of the command onwards
+	function call_url($url) {
+		$namecheap_url = self::construct_url();
+		$namecheap_url .= "&Command=".$url;
+		return wp_remote_get($namecheap_url, array('timeout' => 60));
+	}
+
+	function domain_renew($domain) {
+
+		$result = self::call_url("namecheap.domains.renew&DomainName=$domain&Years=1");
+
+		if (is_wp_error($result)) return $result;
+
+		$xml = new SimpleXMLElement( $result['body'] );
+
+		if ( 'ERROR' == $xml['Status'] ) {
+			return new WP_Error('namecheap_error', (string) $xml->Errors->Error );
+		} elseif ( 'OK' == $xml['Status'] ) {
+			$results = $xml->CommandResponse->DomainRenewResult;
+			if (isset($results['Renew']) && $results['Renew'] == 'true') {
+				return (string)$results->attributes()->TransactionID;
+			}
+			return new WP_Error('api_error', 'An error occurred when examining the domain status');
+		}
+
+
+	}
+
+	// Gets the information on a domain
+	// Returns false if it is not in our account
+	// Returns a WP_Error if something went wrong
+	// Returns an array of information if all goes well
+	function domaininfo($domain) {
+
+		$namecheap_url = self::construct_url();
+
+		$namecheap_url .= "&Command=namecheap.domains.getList&SearchTerm=$domain&Page=1&PageSize=100";
+
+		$result = wp_remote_get($namecheap_url, array('timeout' => 60));
+
+		if (is_wp_error($result)) return $result;
+
+		$xml = new SimpleXMLElement( $result['body'] );
+		if ( 'ERROR' == $xml['Status'] ) {
+			return new WP_Error('namecheap_error', (string) $xml->Errors->Error );
+		} elseif ( 'OK' == $xml['Status'] ) {
+
+			$results = $xml->CommandResponse->DomainGetListResult;
+
+			if (!is_a($results, 'SimpleXMLElement') || count($results)<1) return new WP_Error('no_domain', 'No existing domain registration was found for this domain');
+
+			foreach ($results as $dom) {
+
+				// NameCheap return substring matches - we want exact
+				if (isset($dom->Domain['Name']) && isset($dom->Domain['Expires']) && strtolower($dom->Domain['Name']) == strtolower($domain)) {
+					return $dom->Domain;
+				}
+
+			}
+
+			return new WP_Error('not_found', 'This domain was not found in our account at the registrar');
+		} else {
+			return new WP_Error('api_error', 'An error occurred when examining the domain status');
+		}
+
+	}
+
 	// Returns true (available), false (not available), or a WP_Error object
 	function checkavailability($domain, $namecheap_apiuser = false, $namecheap_apikey = false, $namecheap_clientip = false, $namecheap_sandbox = "yes") {
 

@@ -69,9 +69,41 @@ class ArtSite_Renewals {
 
 	}
 
+	public static function dashboard_access_check() {
+
+		// Exempt super admin (should be superfluous)
+ 		if (is_super_admin()) return;
+
+		get_currentuserinfo();
+		global $user_ID;
+
+		$paid_until = get_user_meta($user_ID, 'paid_until', true);
+
+		if ($paid_until >100 && $paid_until < time()) {
+			// No dashboard for you, sir.
+			$options = get_site_option('artsite_signup_options');
+			$url = $options['card_change_url'];
+			if ($url) {
+				wp_redirect($url);
+			} else {
+				wp_redirect(home_url());
+			}
+			die;
+		}
+
+	}
+
 	public static function admin_init() {
 
+		// Prevent users accessing the dashboard if they have not paid
+		self::dashboard_access_check();
+
+		// Warn if card expiry is approaching
 		self::dashboard_expiry_warning_check();
+
+		// Count down free trial
+		self::dashbaord_freetrial_notice_check();
+
 
 	}
 
@@ -161,6 +193,55 @@ class ArtSite_Renewals {
 		}
 	}
 
+	public static function dashbaord_freetrial_notice_check() {
+		if (is_admin()) {
+			get_currentuserinfo();
+			global $user_ID;
+
+			$paid_until = get_user_meta($user_ID, 'paid_until', true);
+
+			$nowtime = time();
+			$days_away = floor(($paid_until-$nowtime)/86400);
+
+			if ($paid_until >100 && $paid_until>time()) {
+
+				// See if they're in their first 180 days
+
+				$user = get_userdata($user_ID);
+
+				$registered = strtotime($user->user_registered);
+
+				if ($registered>100) {
+
+					$six_months_later = strtotime($user->user_registered.' + 6 months');
+
+					if ($paid_until<=$six_months_later+86400 && $six_months_later>=time()) {
+
+						global $artsite_trial_days_away;
+						$artsite_trial_days_away = $days_away;
+						add_action('admin_notices', array('ArtSite_Renewals', 'show_trial_warning') );
+
+					}
+
+				}
+
+			}
+
+		}
+	}
+
+	public static function show_trial_warning() {
+
+		global $artsite_trial_days_away;
+
+		$days = ($artsite_trial_days_away == 1) ? 'day' : 'days';
+
+		$message = "You are presently in your initial six-month trial period - for another $days_away $days";
+		$class = 'updated';
+
+		echo '<div class="'.$class.'">'."<p>$message</p></div>";
+	}
+
 	public static function show_expiry_warning() {
 		$class = 'error';
 		$options = get_site_option('artsite_signup_options');
@@ -174,6 +255,7 @@ class ArtSite_Renewals {
 	public static function card_renewal_page() {
 
 		$ret = "";
+		$csp = ARTSITE_CSSPREFIX;
 
 		// Display form (just the form - site operator is embedding via a short-code, so they can put in whatever blurb they like in the page)
 
@@ -228,6 +310,17 @@ class ArtSite_Renewals {
 
 		if (is_user_logged_in()) {
 			if (!isset($cancel_show_form)) {
+
+				$paid_until = get_user_meta($user_ID, 'paid_until', true);
+
+				if ($paid_until > 100 && $paid_until<time()) {
+					$ret .= <<<ENDHERE
+						<div id="${csp}_overduepayment_warning">
+							Your account is overdue. You need to supply a valid card which can be charged before access can be restored to your account.
+						</div>
+ENDHERE;
+				}
+
 				$ret .= Artsite_Forms::cardchangeform_render();
 			}
 		} else {
@@ -316,16 +409,101 @@ class ArtSite_Renewals {
 
 	}
 
+	// Purpose of this function: See what domains are about to expire, and renew them
+	public static function renew_due_domains() {
+		
+		// Enumerate domain names
+
+		global $wpdb;
+		$blogs = $wpdb->get_results( $wpdb->prepare("SELECT blog_id, domain, path FROM $wpdb->blogs WHERE site_id = %d AND public = '1' AND archived = '0' AND mature = '0' AND spam = '0' AND deleted = '0' ORDER BY registered DESC", $wpdb->siteid), ARRAY_A );
+
+		foreach ($blogs as $blog) {
+
+			if (!isset($blog['domain'])) continue;
+
+			// See what NameCheap says about the domain's expiry status
+			$dominfo = ArtSite_NameCheap::domaininfo($blog['domain']);
+
+			if (is_a($dominfo, 'SimpleXMLElement')) {
+				$expiry = strtotime(((string)$dominfo['Expires']));
+
+				// We renew if it is no more than 3 days away, and not more than 10 days past (there must have been a problem - no point retrying endlessly)
+
+				$nowtime=time();
+				if ($expiry >100 && $expiry-$nowtime<86400*3 && $nowtime-$expiry<86400*10) {
+					$renew = ArtSite_NameCheap::domain_renew($blog['domain']);
+					// Could also be a WP_Error
+					if (is_string($renew)) {
+
+						// Renewal was successful - we now have a transaction ID
+
+						// Store new metadata for the domain (though this is not really used since we really on NameCheap's authoritative upstream information for expiry status)
+						// And there's nothing we use this info for anyway. But you never know what may be needed in future; or it may be useful for auditing/chasing problems in future.
+						// Get user_id
+						$user = $wpdb->get_row("SELECT user_id FROM $wpdb->usermeta WHERE meta_key='primary_blog' AND meta_value='".$blog['blog_id']."'");
+						if (isset($user->user_id) && is_numeric($user->user_id)) {
+							update_user_meta($user->user_id, 'last_namecheap_transaction', $renew);
+						}
+					}
+				}
+			}
+
+		}
+
+	}
+
+	public static function email_unpaid_users() {
+		// Enumerate users who are unpaid
+
+		global $wpdb;
+
+		$users = $wpdb->get_results("SELECT u.ID, u.user_email, m.meta_value FROM $wpdb->usermeta m, $wpdb->users u WHERE u.ID=m.user_ID AND m.meta_key='paid_until'");
+
+		$nowtime = time();
+
+		$options = get_site_option('artsite_signup_options');
+		$url = (!empty($options['card_change_url'])) ? $options['card_change_url'] : home_url();
+
+		foreach ($users as $user) {
+
+			$paid_until = $user->meta_value;
+
+			$days_overdue = floor(($nowtime-$paid_until)/86400);
+
+			// Nag them if they are 0, 7 or 14 days overdue
+			if ($days_overdue == 0 || $days_overdue == 7 || $days_overdue == 14 || $days_overdue==-150) {
+
+				$email = $user->user_email;
+
+				$days = ($days_overdue == 1) ? 'day' : 'days';
+
+				$overdue_descrip = ($days_overdue == 0) ? "today" : "$days_overdue $days ago";
+
+				$ehash = md5($email); // Transient names must be a maximum of 45 characters long
+				$user_nag_transient = get_site_transient("as_odnag_".$ehash);
+				if ($user_nag_transient == 'naggedtoday') continue;
+
+				wp_mail($email, 'Your account is now overdue', "Your account is now overdue ($overdue_descrip); our previous attempts to charge your card failed, and you have not supplied us with a working card number in the mean-while.\r\n\r\nPlease visit $url to update your card in order to ensure continued service.\r\n");
+
+				set_transient("as_odnag_".$ehash, 'naggedtoday', 86399);
+
+			}
+
+		}
+
+	}
+
 	// This is our main (twice-)daily job. From here we despatch + do all other checks and jobs.
 	public static function cron_runner() {
 
 		// Go through the various regular tasks. These functions should make no assumptions themselves how regularly they are called - i.e. be stateless, within a week (to allow use of transients).
 		self::email_users_with_expiring_cards();
+
 		self::charge_due_users();
-// 		self::();
-// 		self::();
-// 		self::();
-// 		self::();
+
+		self::renew_due_domains();
+
+		self::email_unpaid_users();
 
 	}
 

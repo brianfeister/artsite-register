@@ -33,7 +33,8 @@ function artsite_signup_options_setdefaults() {
 			'charge_description' => 'Artsite',
 			'signup_url' => "", 
 			'post_signup_url' => '',
-			'nameservers_default' => ''
+			'nameservers_default' => '',
+			'card_change_url' => ''
 		);
 		update_site_option('artsite_signup_options', $arr);
 	}
@@ -72,7 +73,8 @@ function artsite_update_wpmu_options() {
 		'stripe_apikey', 'stripe_apisecretkey',
 		'signup_url', 'post_signup_url',
 		'charge_description',
-		'domainreg_address1', 'domainreg_town', 'domainreg_state', 'domainreg_zip', 'domainreg_phone', 'domainreg_email', 'domainreg_org', 'domainreg_fname', 'domainreg_lname', 'domainreg_country'
+		'domainreg_address1', 'domainreg_town', 'domainreg_state', 'domainreg_zip', 'domainreg_phone', 'domainreg_email', 'domainreg_org', 'domainreg_fname', 'domainreg_lname', 'domainreg_country',
+		'card_change_url'
 	);
 	foreach ($other_options as $key) $options[$key] = $_POST[$key];
 
@@ -143,6 +145,8 @@ $options = get_site_option('artsite_signup_options');
 	<td><input maxlength="128" type="text" size="48" name="post_signup_url" value="<?php if (!empty($options['post_signup_url'])) { echo htmlspecialchars($options['post_signup_url']);} else { echo "http://"; } ?>"/></td>
 </tr>
 
+<?php artsite_signup_options_standardrow('URL for card details change:', 'card_change_url', 'This should be a URL for a page containing the [artsite-card-change-form] shortcode', 48); ?>
+
 <tr valign="top">
 	<th scope="row">Charge description:</th>
 	<td><input maxlength="128" type="text" size="48" name="charge_description" value="<?php if (!empty($options['charge_description'])) { echo htmlspecialchars($options['charge_description']);} else { echo "Artsite"; } ?>"/> <em>This is passed to Stripe as the charge description</em></td>
@@ -160,6 +164,7 @@ $options = get_site_option('artsite_signup_options');
 
 }
 
+// There is no deep reason why this function is not used more. I added it after realising that I was going to repeat a lot, but did not fix non-broken things by converting everything to using it.
 function artsite_signup_options_standardrow($label, $name, $description = "", $size = 12, $maxlength = 100, $default = "", $prefix = "" ) {
 $options = get_site_option('artsite_signup_options');
 ?>

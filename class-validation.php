@@ -5,6 +5,31 @@
 
 class ArtSite_DataValidator {
 
+	function display_errors() {
+
+		$ret = "";
+
+		$csp = ARTSITE_CSSPREFIX;
+		global $artsite_form_errors;
+
+		$ret .= "<div id=\"${csp}_errorbox\">";
+
+		if (count($artsite_form_errors) == 0) $artsite_form_errors[] = "No input errors - but apparently nothing picked up the artsite_signup_validated action and redirected us away to another page; hence we're still here.";
+
+		$ret .= "<p><strong>Validation errors occured - please check your input and try again.</strong></p>\n";
+
+		$ret .= "<ul>\n";
+		foreach ($artsite_form_errors as $err) {
+			$ret .= '<li>'.htmlspecialchars($err)."</li>\n";
+		}
+		$ret .= "</ul>\n";
+
+		$ret .="</div>";
+
+		return $ret;
+
+	}
+
 	function validate_username() {
 
 		global $artsite_form_errors;
@@ -136,8 +161,85 @@ class ArtSite_DataValidator {
 		return $sum % 10 === 0;
 	}
 
+	function validate_address() {
+
+		global $artsite_form_errors;
+
+		if (empty($_POST[$csp.'_country']) || strlen($_POST[$csp.'_country']) != 2) {
+			$artsite_form_errors[] = "Unknown country selected";
+		}
+
+		if (empty($_POST[$csp.'_phonecountrycode']) || !preg_match("/^[0-9]{1,5}$/", $_POST[$csp.'_phonecountrycode'])) {
+			$artsite_form_errors[] = "Invalid phone country code entered";
+		}
+
+	}
+
+	function validate_creditcard($existing_customer_token = false) {
+
+		global $artsite_form_errors;
+		$csp = ARTSITE_CSSPREFIX;
+
+		$stripe_customer_token = false;
+
+		// Valid credit card details - can get a token
+		if (empty($_POST[$csp.'_ccnumber']) || empty($_POST[$csp.'_ccexpiry']) || empty($_POST[$csp.'_cccvc'])) {
+			$artsite_form_errors[] = "Please enter a credit card number, expiry date and CVC code.";
+		} else {
+			$credit_card_invalid = false;
+			if (!is_numeric($_POST[$csp.'_ccnumber']) || !self::is_valid_luhn($_POST[$csp.'_ccnumber'])) { $credit_card_invalid = true; $artsite_form_errors[] = "Please enter a valid credit card number."; }
+			if (!preg_match("/^(0[0-9]|1[0-2])\/(1[2-9]|[2-9][0-9])$/",$_POST[$csp.'_ccexpiry'])) { $credit_card_invalid = true; $artsite_form_errors[] = "Please enter a future four-digit expiry date for this credit card (format: MM/YY)."; }
+			if (!is_numeric($_POST[$csp.'_cccvc']) || !preg_match("/^([0-9]{3,4})$/",$_POST[$csp.'_cccvc'])) { $credit_card_invalid = true; $artsite_form_errors[] = "Please enter a valid CVC code for this credit card."; }
+			if ($credit_card_invalid == false) {
+				// Stripe token
+				global $artsite_payments;
+				if (!$artsite_payments->initialise()) {
+					$artsite_form_errors[] = "We had an internal error trying to process your credit card number. Please try again, or contact support.";
+				} else {
+					$exp_month = (int)substr($_POST[$csp.'_ccexpiry'], 0, 2);
+					$exp_year = (int)substr($_POST[$csp.'_ccexpiry'], 3, 2);
+
+					try {
+
+						$card_array = array (
+							'number' => $_POST[$csp.'_ccnumber'],
+							'exp_month' => $exp_month,
+							'exp_year' => $exp_year,
+							'cvc' => $_POST[$csp.'_cccvc']
+						);
+		
+						if ($existing_customer_token) {
+
+							$customer = $artsite_payments->update_customer($existing_customer_token, $card_array);
+							
+							$stripe_customer_token = isset($customer->id) ? $customer->id : false;
+
+						} else {
+							$details = array(
+								'description' => "Customer for ".$_POST[$csp.'_email'],
+								'card' => $card_array
+							);
+
+							$customer = $artsite_payments->create_customer($details);
+
+							$stripe_customer_token = isset($customer->id) ? $customer->id : false;
+						}
+
+
+					} catch (Exception $e) {
+						$artsite_form_errors[] = "An error occurred when trying to process your credit card (".htmlspecialchars($e->getMessage()).")";
+					}
+				}
+				
+			}
+		}
+		
+		return $stripe_customer_token;
+
+	}
+
 	// Returns false or an array. The array is one suitable for passing to ArtSite_SignupHandler::process_signup
-	function verify_form() {
+	function verify_signup_form() {
 
 		$csp = ARTSITE_CSSPREFIX;
 
@@ -153,13 +255,7 @@ class ArtSite_DataValidator {
 
 			self::validate_domainname();
 
-			if (empty($_POST[$csp.'_country']) || strlen($_POST[$csp.'_country']) != 2) {
-				$artsite_form_errors[] = "Unknown country selected";
-			}
-
-			if (empty($_POST[$csp.'_phonecountrycode']) || !preg_match("/^[0-9]{1,5}$/", $_POST[$csp.'_phonecountrycode'])) {
-				$artsite_form_errors[] = "Invalid phone country code entered";
-			}
+			self::validate_address();
 
 			if (empty($_POST[$csp.'_phoneno']) || !preg_match("/^[ 0-9]{1,16}$/", $_POST[$csp.'_phonecountrycode']) || preg_match("/^ +$/", $_POST[$csp.'_phonecountrycode'])) {
 				$artsite_form_errors[] = "Invalid phone number entered (use numbers only)";
@@ -167,46 +263,8 @@ class ArtSite_DataValidator {
 				$_POST[$csp.'_phonecountrycode'] = str_replace(' ', '', $_POST[$csp.'_phonecountrycode']);
 			}
 
-			// Valid credit card details - can get a token
-			if (empty($_POST[$csp.'_ccnumber']) || empty($_POST[$csp.'_ccexpiry']) || empty($_POST[$csp.'_cccvc'])) {
-				$artsite_form_errors[] = "Please enter a credit card number, expiry date and CVC code.";
-			} else {
-				$credit_card_invalid = false;
-				if (!is_numeric($_POST[$csp.'_ccnumber']) || !self::is_valid_luhn($_POST[$csp.'_ccnumber'])) { $credit_card_invalid = true; $artsite_form_errors[] = "Please enter a valid credit card number."; }
-				if (!preg_match("/^(0[0-9]|1[0-2])\/(1[2-9]|[2-9][0-9])$/",$_POST[$csp.'_ccexpiry'])) { $credit_card_invalid = true; $artsite_form_errors[] = "Please enter a future four-digit expiry date for this credit card (format: MM/YY)."; }
-				if (!is_numeric($_POST[$csp.'_cccvc']) || !preg_match("/^([0-9]{3,4})$/",$_POST[$csp.'_cccvc'])) { $credit_card_invalid = true; $artsite_form_errors[] = "Please enter a valid CVC code for this credit card."; }
-				if ($credit_card_invalid == false) {
-					// Stripe token
-					global $artsite_payments;
-					if (!$artsite_payments->initialise()) {
-						$artsite_form_errors[] = "We had an internal error trying to process your credit card number. Please try again, or contact support.";
-					} else {
-						$exp_month = substr($_POST[$csp.'_ccexpiry'], 0, 2);
-						$exp_year = substr($_POST[$csp.'_ccexpiry'], 3, 2);
+			$stripe_customer_token = self::validate_creditcard();
 
-						try {
-
-							$details = array(
-								'description' => "Customer for ".$_POST[$csp.'_email'],
-								'card' => array (
-									'number' => $_POST[$csp.'_ccnumber'],
-									'exp_month' => $exp_month,
-									'exp_year' => $exp_year,
-									'cvc' => $_POST[$csp.'_cccvc']
-								)
-							);
-
-							$customer = $artsite_payments->create_customer($details);
-
-							$stripe_customer_token = $customer->id;
-
-						} catch (Exception $e) {
-							$artsite_form_errors[] = "An error occurred when trying to process your credit card (".htmlspecialchars($e->getMessage()).")";
-						}
-					}
-					
-				}
-			}
 			if (count($artsite_form_errors) == 0) {
 				// In theory, this is redundant, but also harmless as far as validation goes
 				// However, it does provide the correct filters to allow other plugins to act
