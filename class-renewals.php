@@ -521,7 +521,7 @@ ENDHERE;
 		$url = (!empty($options['card_change_url'])) ? $options['card_change_url'] : home_url();
 		
 		foreach ($users as $user) {
-			$charged = self::check_pending_charges($user->id, false, $user->meta_value, $amount);
+			$charged = self::check_pending_charges($user->ID, false, $user->meta_value, $amount);
 
 			// A WP_Error specifically indicates that a charge was detected as required and should have been possible (a payment token existed) but that it failed
 			if (is_wp_error($charged)) {
